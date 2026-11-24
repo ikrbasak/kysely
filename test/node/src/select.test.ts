@@ -348,6 +348,49 @@ for (const dialect of DIALECTS) {
       expect(persons).to.eql([{ pet_name: 'Catto' }])
     })
 
+    it('should select null from a scalar subquery that returns no rows', async () => {
+      const query = ctx.db
+        .selectFrom('person')
+        .select((eb) => [
+          'first_name',
+          eb
+            .selectFrom('pet')
+            .select('pet.name')
+            .whereRef('pet.owner_id', '=', 'person.id')
+            .where('pet.species', '=', 'dog')
+            .$asScalar()
+            .as('dog_name'),
+        ])
+        .orderBy('first_name')
+
+      testSql(query, dialect, {
+        postgres: {
+          sql: 'select "first_name", (select "pet"."name" from "pet" where "pet"."owner_id" = "person"."id" and "pet"."species" = $1) as "dog_name" from "person" order by "first_name"',
+          parameters: ['dog'],
+        },
+        mysql: {
+          sql: 'select `first_name`, (select `pet`.`name` from `pet` where `pet`.`owner_id` = `person`.`id` and `pet`.`species` = ?) as `dog_name` from `person` order by `first_name`',
+          parameters: ['dog'],
+        },
+        mssql: {
+          sql: 'select "first_name", (select "pet"."name" from "pet" where "pet"."owner_id" = "person"."id" and "pet"."species" = @1) as "dog_name" from "person" order by "first_name"',
+          parameters: ['dog'],
+        },
+        sqlite: {
+          sql: 'select "first_name", (select "pet"."name" from "pet" where "pet"."owner_id" = "person"."id" and "pet"."species" = ?) as "dog_name" from "person" order by "first_name"',
+          parameters: ['dog'],
+        },
+      })
+
+      const persons = await query.execute()
+
+      expect(persons).to.eql([
+        { first_name: 'Arnold', dog_name: 'Doggo' },
+        { first_name: 'Jennifer', dog_name: null },
+        { first_name: 'Sylvester', dog_name: null },
+      ])
+    })
+
     it('should select the count of jennifers using count', async () => {
       const query = ctx.db
         .selectFrom('person')

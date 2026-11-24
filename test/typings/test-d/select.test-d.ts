@@ -200,10 +200,24 @@ async function testSelectSingle(db: Kysely<Database>) {
   }>(r19)
 
   const expr1 = db.selectFrom('person').select('first_name').$asScalar()
-  expectType<ExpressionWrapper<Database, 'person', string>>(expr1)
+  expectType<ExpressionWrapper<Database, 'person', string | null>>(expr1)
 
   const expr2 = db.selectFrom('person').select('deleted_at').$asScalar()
   expectType<ExpressionWrapper<Database, 'person', Date | null>>(expr2)
+
+  const r20 = await db
+    .selectFrom('person')
+    .select((eb) =>
+      eb
+        .selectFrom('pet')
+        .select('pet.name')
+        .whereRef('pet.owner_id', '=', 'person.id')
+        .limit(1)
+        .$asScalar()
+        .as('pet_name'),
+    )
+    .executeTakeFirstOrThrow()
+  expectType<{ pet_name: string | null }>(r20)
 }
 
 async function testSelectAll(db: Kysely<Database>) {

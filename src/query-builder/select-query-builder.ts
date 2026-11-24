@@ -1992,9 +1992,12 @@ export interface SelectQueryBuilder<DB, TB extends keyof DB, O>
    * // doStuff(db.selectFrom('person').select('first_name'))
    *
    * // Ok! This is ok since we've plucked the `string` type of the
-   * // only column in the output type.
-   * doStuff(db.selectFrom('person').select('first_name').$asScalar())
+   * // only column in the output type and removed the `null` with `$notNull`.
+   * doStuff(db.selectFrom('person').select('first_name').$asScalar().$notNull())
    * ```
+   *
+   * The scalar type is nullable, since a scalar subquery that returns no rows
+   * evaluates to `null`.
    *
    * This function has absolutely no effect on the generated SQL. It's
    * purely a type-level helper.
@@ -2003,7 +2006,11 @@ export interface SelectQueryBuilder<DB, TB extends keyof DB, O>
    * since the return value should only be used as a part of an expression
    * and never executed as the main query.
    */
-  $asScalar<K extends keyof O = keyof O>(): ExpressionWrapper<DB, TB, O[K]>
+  $asScalar<K extends keyof O = keyof O>(): ExpressionWrapper<
+    DB,
+    TB,
+    O[K] | null
+  >
 
   /**
    * Narrows (parts of) the output type of the query.
